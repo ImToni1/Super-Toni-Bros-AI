@@ -1,4 +1,4 @@
-# start.py - ISPRAVLJENA VERZIJA
+# start.py
 
 import os
 import sys
@@ -14,29 +14,29 @@ os.environ['SDL_VIDEO_CENTERED'] = '1'
 # Dohvati korijenski direktorij projekta (gdje se nalazi start.py)
 project_root = os.path.dirname(os.path.abspath(__file__))
 
-# Dodaj korijenski direktorij projekta u sys.path
+# Dodaj korijenski direktorij projekta u sys.path kako bi se src paket mogao pronaći
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- ISPIS ZA DEBUGIRANJE (možete ih ukloniti nakon što proradi) ---
 # print(f"sys.path nakon modifikacije: {sys.path}")
-# print(f"Pokušavam uvesti iz paketa 'src' u: {project_root}")
+# print(f"Korijenski direktorij projekta: {project_root}")
 # --- KRAJ ISPISA ZA DEBUGIRANJE ---
 
 try:
-    import src.main as main_module
-    import src.main_ga as main_ga_module
+    # AŽURIRANI IMPORTI prema novoj strukturi
+    from src.manual_game import main_manual as main_module
+    from src.ai_game import main_ai as main_ga_module
 
     run_manual_game = main_module.run_game
     run_genetic_algorithm = main_ga_module.run_genetic_algorithm
 
 except ImportError as e:
-    print(f"Greška pri importu modula igre (src.main ili src.main_ga): {e}")
-    # ... (ostatak error handlinga za import)
+    print(f"Greška pri importu modula igre (src.manual_game.main_manual ili src.ai_game.main_ai): {e}") # AŽURIRANO
+    print("Molimo provjerite da li su datoteke na ispravnim mjestima i da li __init__.py datoteke postoje u src, src/manual_game i src/ai_game direktorijima.")
     sys.exit(1)
 except AttributeError as e:
-    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/main.py' i 'run_genetic_algorithm' u 'src/main_ga.py' na top-levelu.")
-    # ... (ostatak error handlinga za AttributeError)
+    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/manual_game/main_manual.py' i 'run_genetic_algorithm' u 'src/ai_game/main_ai.py' na top-levelu.") # AŽURIRANO
     sys.exit(1)
 except Exception as e:
     print(f"Neočekivana greška prilikom importa: {e}")
@@ -81,16 +81,17 @@ def draw_button(surface, rect, text, text_color, button_color, hover_color):
     current_color = hover_color if is_hovering else button_color
     pygame.draw.rect(surface, current_color, rect)
     draw_text(text, font, text_color, surface, rect.centerx, rect.centery)
-    return is_hovering # Vrati hover stanje da se može koristiti u event petlji
+    return is_hovering
 
 def main_menu():
-    global screen # === VAŽNO: Koristimo globalnu 'screen' varijablu ===
+    global screen
 
-    # Put do level.txt datoteke.
-    level_filepath_menu = os.path.join(project_root, "src", "level.txt")
+    # AŽURIRANA PUTANJA do level.txt datoteke.
+    level_filepath_menu = os.path.join(project_root, "src", "core", "level.txt")
 
     background_image = None
     try:
+        # Putanja do pozadinske slike ostaje relativna na project_root
         background_path_menu = os.path.join(project_root, "images", "Background.jpeg")
         if os.path.exists(background_path_menu):
             background_image = pygame.image.load(background_path_menu).convert()
@@ -107,8 +108,6 @@ def main_menu():
 
     running = True
     while running:
-        # Dohvati hover stanja na početku svakog okvira
-        # (draw_button interno dohvaća mouse_pos, pa ovo nije nužno za samo crtanje, ali jest za logiku klika)
         is_manual_hover = manual_play_button_rect.collidepoint(pygame.mouse.get_pos())
         is_ai_hover = ai_play_button_rect.collidepoint(pygame.mouse.get_pos())
         is_exit_hover = exit_button_rect.collidepoint(pygame.mouse.get_pos())
@@ -121,29 +120,25 @@ def main_menu():
                     if is_manual_hover:
                         print("Pokretanje ručne igre...")
                         run_manual_game(level_filepath_menu)
-                        # === ISPRAVAK: Ponovno dodijeli 'screen' ===
-                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) 
+                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
                         print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
-                        # === ISPRAVAK: Ponovno dodijeli 'screen' ===
-                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) 
+                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:
                         running = False
         
-        # Crtanje na ekran
-        screen.fill(LIGHT_BLUE) # Sada bi trebalo raditi s ispravnom 'screen' površinom
+        screen.fill(LIGHT_BLUE)
         if background_image:
             screen.blit(background_image, (0, 0))
-        else: # Fallback ako nema pozadinske slike
+        else:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0,0,0,120)) # Poluprozirni crni overlay
+            overlay.fill((0,0,0,120))
             screen.blit(overlay, (0,0))
 
         draw_text("Super Toni Bros", title_font, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
-        # Funkcija draw_button sama provjerava hover, pa ne moramo prosljeđivati is_..._hover
         draw_button(screen, manual_play_button_rect, "Igraj Ručno", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
         draw_button(screen, ai_play_button_rect, "Pokreni AI", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
         draw_button(screen, exit_button_rect, "Izlaz", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
@@ -151,7 +146,7 @@ def main_menu():
         pygame.display.update()
         pygame.time.Clock().tick(30)
         
-    pygame.quit() # Ugasi Pygame kada se izađe iz glavne petlje (npr. klik na Izlaz)
+    pygame.quit()
     sys.exit()
 
 if __name__ == "__main__":

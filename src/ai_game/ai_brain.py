@@ -1,25 +1,25 @@
-# src/ai_brain.py
+# src/ai_game/ai_brain.py
 import random
 
 class AIAction:
     def __init__(self, is_jump, hold_time, x_direction):
         self.is_jump = is_jump
-        self.hold_time = hold_time 
-        self.x_direction = x_direction 
+        self.hold_time = hold_time
+        self.x_direction = x_direction
 
     def clone(self):
         return AIAction(self.is_jump, self.hold_time, self.x_direction)
 
     def mutate(self):
-        self.hold_time += random.uniform(-0.15, 0.15) 
+        self.hold_time += random.uniform(-0.15, 0.15)
         self.hold_time = max(0.1, min(self.hold_time, 1.0))
-        if random.random() < 0.25: 
-            self.x_direction = random.choice([-1, 0, 1, 1, 1, 1])
-        if random.random() < 0.15: 
+        if random.random() < 0.25:
+            self.x_direction = random.choice([-1, 0, 1, 1, 1, 1]) # Veća šansa za kretanje desno
+        if random.random() < 0.15:
             self.is_jump = not self.is_jump
 
 class Brain:
-    JUMP_CHANCE = 0.35 
+    JUMP_CHANCE = 0.35
 
     def __init__(self, instruction_size, randomize_instructions=True):
         self.instructions = []
@@ -30,8 +30,8 @@ class Brain:
 
     def _get_random_action(self):
         is_jump = random.random() < self.JUMP_CHANCE
-        hold_time = random.uniform(0.1, 0.8) 
-        x_direction = random.choices([-1, 0, 1], weights=[5, 15, 80], k=1)[0]
+        hold_time = random.uniform(0.1, 0.8)
+        x_direction = random.choices([-1, 0, 1], weights=[5, 15, 80], k=1)[0] # Jaka preferencija za desno
         return AIAction(is_jump, hold_time, x_direction)
 
     def randomize(self, size):
@@ -63,11 +63,7 @@ class Brain:
         for _ in range(num_additional_moves):
             self.instructions.append(self._get_random_action())
 
-    # === DODANA METODA ===
     def set_instructions(self, instructions_list):
         """Postavlja listu instrukcija za ovaj mozak."""
         self.instructions = instructions_list
-        # Osiguraj da je instruction_size (ako ga pratiš kao atribut) ažuriran,
-        # ili jednostavno koristi len(self.instructions)
-        self.current_instruction_number = 0 # Resetiraj brojač za izvršavanje
-    # =====================
+        self.current_instruction_number = 0
