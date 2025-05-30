@@ -1,5 +1,3 @@
-# src/core/player.py
-
 import pygame
 import os
 
@@ -14,9 +12,7 @@ class Player:
         self.on_ground = False
         self.facing_left = False
 
-        # AŽURIRANA PUTANJA DO SLIKE
-        base_path = os.path.dirname(os.path.abspath(__file__)) # src/core
-        # Treba ići dva nivoa gore (do Super-Toni-Bros-AI) pa u images
+        base_path = os.path.dirname(os.path.abspath(__file__)) 
         image_path = os.path.join(base_path, "..", "..", "images", "Player.png")
 
 
@@ -26,8 +22,6 @@ class Player:
             self.image_left = pygame.transform.flip(self.image_right, True, False)
             self.image = self.image_right
         except pygame.error as e:
-            print(f"Greška pri učitavanju slike igrača: {e}")
-            print(f"Pokušana putanja: {image_path}")
             self.image = pygame.Surface((original_width, original_height))
             self.image.fill((255,0,0))
             self.image_right = self.image

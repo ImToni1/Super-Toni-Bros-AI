@@ -1,4 +1,3 @@
-# src/ai_game/ai_brain.py
 import random
 
 class AIAction:
@@ -14,7 +13,7 @@ class AIAction:
         self.hold_time += random.uniform(-0.15, 0.15)
         self.hold_time = max(0.1, min(self.hold_time, 1.0))
         if random.random() < 0.25:
-            self.x_direction = random.choice([-1, 0, 1, 1, 1, 1]) # Veća šansa za kretanje desno
+            self.x_direction = random.choice([-1, 0, 1, 1, 1, 1]) 
         if random.random() < 0.15:
             self.is_jump = not self.is_jump
 
@@ -31,7 +30,7 @@ class Brain:
     def _get_random_action(self):
         is_jump = random.random() < self.JUMP_CHANCE
         hold_time = random.uniform(0.1, 0.8)
-        x_direction = random.choices([-1, 0, 1], weights=[5, 15, 80], k=1)[0] # Jaka preferencija za desno
+        x_direction = random.choices([-1, 0, 1], weights=[5, 15, 80], k=1)[0] 
         return AIAction(is_jump, hold_time, x_direction)
 
     def randomize(self, size):
@@ -64,6 +63,6 @@ class Brain:
             self.instructions.append(self._get_random_action())
 
     def set_instructions(self, instructions_list):
-        """Postavlja listu instrukcija za ovaj mozak."""
+        """Postavlja listu instrukcija."""
         self.instructions = instructions_list
         self.current_instruction_number = 0

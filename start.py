@@ -1,20 +1,13 @@
-# start.py
-
 import os
 import sys
 import pygame
 
-# === DODANO: Inicijaliziraj Pygame na početku ===
 pygame.init()
-# ===============================================
 
-# Postavi varijablu okoline PRIJE uvoza Pygamea.
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 
-# Dohvati korijenski direktorij projekta (gdje se nalazi start.py)
 project_root = os.path.dirname(os.path.abspath(__file__))
 
-# Dodaj korijenski direktorij projekta u sys.path kako bi se src paket mogao pronaći
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -26,14 +19,10 @@ try:
     run_genetic_algorithm = main_ga_module.run_genetic_algorithm
 
 except ImportError as e:
-    print(f"Greška pri importu modula igre (src.manual_game.manual_game ili src.ai_game.main_ai): {e}") 
-    print("Molimo provjerite da li su datoteke na ispravnim mjestima i da li __init__.py datoteke postoje u src, src/manual_game i src/ai_game direktorijima.")
     sys.exit(1)
 except AttributeError as e:
-    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/manual_game/manual_game.py' i 'run_genetic_algorithm' u 'src/ai_game/main_ai.py' na top-levelu.") 
     sys.exit(1)
 except Exception as e:
-    print(f"Neočekivana greška prilikom importa: {e}")
     sys.exit(1)
 
 if not pygame.font.get_init():
@@ -54,7 +43,6 @@ try:
     font = pygame.font.Font(None, 50)
     title_font = pygame.font.Font(None, 70)
 except Exception as e:
-    print(f"Greška pri učitavanju fonta: {e}. Koristi se SysFont.")
     font = pygame.font.SysFont(None, 50)
     title_font = pygame.font.SysFont(None, 70)
 
@@ -87,7 +75,7 @@ def main_menu():
             background_image = pygame.image.load(background_path_menu).convert()
             background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     except pygame.error as e:
-        print(f"Greška pri učitavanju pozadinske slike za izbornik: {e}")
+        pass
 
     button_width = 300
     button_height = 70
@@ -106,20 +94,15 @@ def main_menu():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # Lijevi klik
+                if event.button == 1: 
                     if is_manual_hover:
-                        print("Pokretanje ručne igre...")
                         run_manual_game(level_filepath_menu)
-                        # DODANO: Očisti preostale klikove miša iz reda događaja
                         pygame.event.clear(pygame.MOUSEBUTTONDOWN)
                         pygame.event.clear(pygame.MOUSEBUTTONUP)
-                        # ----------------------------------------------------
                         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
-                        print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
-      
                         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:

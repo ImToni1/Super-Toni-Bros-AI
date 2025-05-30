@@ -1,15 +1,12 @@
-# src/manual_game/main_manual.py
-
 import pygame
 import sys
 import os
-# AŽURIRANI IMPORTI
+
 from src.core.platforms import PlatformManager
 from src.core.player import Player
 
-# LEVEL_FILEPATH se sada prosljeđuje funkciji run_game iz start.py
 
-def run_game(level_filepath): # level_filepath je sada argument
+def run_game(level_filepath): 
     pygame.init()
 
     SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -21,8 +18,6 @@ def run_game(level_filepath): # level_filepath je sada argument
     try:
         background_image = pygame.image.load(background_path).convert()
     except pygame.error as e:
-        print(f"Greška pri učitavanju pozadinske slike: {e}")
-        print(f"Pokušana putanja: {background_path}")
         background_image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         background_image.fill((200, 200, 255)) 
 
@@ -32,8 +27,6 @@ def run_game(level_filepath): # level_filepath je sada argument
         win_image = pygame.image.load(win_image_path).convert()
         win_image = pygame.transform.scale(win_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     except pygame.error as e:
-        print(f"Greška pri učitavanju slike pobjede: {e}")
-        print(f"Pokušana putanja: {win_image_path}")
         win_image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         win_image.fill((0,255,0)) 
 
@@ -59,8 +52,7 @@ def run_game(level_filepath): # level_filepath je sada argument
     else:
         player.rect.y = SCREEN_HEIGHT - player.rect.height - 50 
         player.on_ground = True 
-        print("Upozorenje: Nema platformi, igrač postavljen na dno ekrana.")
-
+        
     start_time = pygame.time.get_ticks()
 
     def reset_game():
@@ -88,7 +80,7 @@ def run_game(level_filepath): # level_filepath je sada argument
         pygame.display.update()
 
         waiting = True
-        user_chose_to_exit = False # Nova varijabla
+        user_chose_to_exit = False 
         while waiting:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -96,9 +88,8 @@ def run_game(level_filepath): # level_filepath je sada argument
                     sys.exit()
                 if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
                     waiting = False
-                    user_chose_to_exit = True # Korisnik je kliknuo/pritisnuo tipku
-            # Nema potrebe za `if not waiting: break` jer while petlja to rješava
-        return user_chose_to_exit # Vrati da li je korisnik izašao
+                    user_chose_to_exit = True 
+        return user_chose_to_exit 
 
     running = True
     game_won = False
@@ -129,7 +120,6 @@ def run_game(level_filepath): # level_filepath je sada argument
         player.apply_gravity(gravity)
 
         if player.rect.top > SCREEN_HEIGHT + 100: 
-            print(f"Player fell off screen. Resetting game. (Frame {frame_counter})") 
             reset_game() 
             frame_counter = 0 
             
@@ -161,17 +151,14 @@ def run_game(level_filepath): # level_filepath je sada argument
                 player.on_ground = True
                 break
 
-        # Provjera pobjede i poziv ekrana pobjede
         if not game_won and platform_manager.goal and player.rect.colliderect(platform_manager.goal):
             game_won = True
             victory_elapsed_time = elapsed_time
-            # Ako je korisnik kliknuo na ekranu pobjede, postavi running na False
             if show_victory_screen(victory_elapsed_time):
-                running = False # ODMAH postavi running na False
+                running = False 
         
-        # Ako running postane False zbog pobjede, ne crtaj više i ne obrađuj događaje u ovoj iteraciji
         if not running:
-            break # Izađi iz while petlje odmah
+            break 
 
         player.draw(screen)
         platform_manager.draw(screen)
@@ -185,15 +172,8 @@ def run_game(level_filepath): # level_filepath je sada argument
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            # Ovaj dio više nije nužno potreban ako gornji `if show_victory_screen...` postavi `running = False`
-            # Ali ostavljamo ga za slučaj da korisnik klikne nakon što je `game_won` već true, a `show_victory_screen`
-            # nije pozvan u toj iteraciji (manje vjerojatno s novom logikom).
-            # Ili, ako se `show_victory_screen` ne bi odmah prekinuo petlju.
             if game_won and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
-                 if not running: # Ako je running već False zbog show_victory_screen, ne radi ništa
+                 if not running: 
                      pass
-                 else: # Inače, ovo je drugi klik nakon što je ekran pobjede već prošao
-                     # Ovo se sada ne bi trebalo događati ako je gornja logika ispravna.
-                     # Za svaki slučaj, ako bi se ipak desilo, osiguraj izlazak.
-                     print("Dodatni klik nakon pobjede detektiran za izlaz.") # Za debug
+                 else: 
                      running = False

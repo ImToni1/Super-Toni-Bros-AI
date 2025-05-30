@@ -1,4 +1,3 @@
-# src/core/platforms.py
 import pygame
 import os
 
@@ -8,25 +7,18 @@ class PlatformManager:
     def __init__(self, screen_width, screen_height, level_filepath):
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.level_filepath = level_filepath # Putanja se prosljeđuje
+        self.level_filepath = level_filepath 
         self.platforms = []
         self.goal = None
 
-        # AŽURIRANE PUTANJE DO SLIKA
-        base_path = os.path.dirname(os.path.abspath(__file__)) # src/core
+        base_path = os.path.dirname(os.path.abspath(__file__)) 
         
         try:
-            # Treba ići dva nivoa gore (do Super-Toni-Bros-AI) pa u images
             self.platform_image_original = pygame.image.load(os.path.join(base_path, "..", "..", "images", "Platforms.png")).convert_alpha()
             self.ground_image_original = pygame.image.load(os.path.join(base_path, "..", "..", "images", "Ground.png")).convert_alpha()
             self.flag_image = pygame.image.load(os.path.join(base_path, "..", "..", "images", "Flag.png")).convert_alpha()
             self.flag_image = pygame.transform.scale(self.flag_image, (160, 160))
         except pygame.error as e:
-            print(f"KRITIČNA GREŠKA pri učitavanju slika u PlatformManager: {e}")
-            # Ispis putanja koje su se pokušale učitati
-            print(f"  Pokušana putanja za Platforme: {os.path.join(base_path, '..', '..', 'images', 'Platforms.png')}")
-            print(f"  Pokušana putanja za Tlo: {os.path.join(base_path, '..', '..', 'images', 'Ground.png')}")
-            print(f"  Pokušana putanja za Zastavu: {os.path.join(base_path, '..', '..', 'images', 'Flag.png')}")
             self.platform_image_original = None
             self.ground_image_original = None
             self.flag_image = None
@@ -34,36 +26,33 @@ class PlatformManager:
     def _load_platforms_from_file(self):
         loaded_platforms = []
         try:
-            # self.level_filepath je već potpuna putanja proslijeđena iz start.py ili main_ai.py
             with open(self.level_filepath, 'r') as f:
                 for line_idx, line in enumerate(f):
                     line = line.strip()
                     if line and not line.startswith('#'):
                         parts = line.split(',')
-                        if len(parts) == 3: # x,y,sirina
+                        if len(parts) == 3: 
                             try:
                                 x = int(parts[0])
                                 y = int(parts[1])
                                 width = int(parts[2])
-                                height = PlatformManager.FIXED_PLATFORM_HEIGHT # Koristi fiksnu visinu
+                                height = PlatformManager.FIXED_PLATFORM_HEIGHT 
                                 loaded_platforms.append(pygame.Rect(x, y, width, height))
                             except ValueError:
-                                print(f"Preskačem neispravan redak br. {line_idx+1} u {self.level_filepath}: '{line}' (ValueError)")
-                        elif len(parts) == 4: # x,y,sirina,visina (stari format, ignoriraj visinu)
+                                pass
+                        elif len(parts) == 4: 
                              try:
                                 x = int(parts[0])
                                 y = int(parts[1])
                                 width = int(parts[2])
-                                # height = int(parts[3]) # Ignoriramo učitanu visinu
-                                height = PlatformManager.FIXED_PLATFORM_HEIGHT # Koristi fiksnu visinu
+                                height = PlatformManager.FIXED_PLATFORM_HEIGHT 
                                 loaded_platforms.append(pygame.Rect(x, y, width, height))
-                                print(f"Upozorenje: Redak br. {line_idx+1} u {self.level_filepath} ima 4 vrijednosti. Koristim fiksnu visinu platforme.")
                              except ValueError:
-                                print(f"Preskačem neispravan redak br. {line_idx+1} u {self.level_filepath}: '{line}' (ValueError za 4 dijela)")
+                                pass
                         else:
-                            print(f"Preskačem redak br. {line_idx+1} s netočnim brojem vrijednosti u {self.level_filepath}: '{line}'. Očekivano: x,y,sirina")
+                            pass
         except FileNotFoundError:
-            print(f"GREŠKA: Datoteka s razinom '{self.level_filepath}' nije pronađena.")
+            pass
         return loaded_platforms
 
     def generate_platforms(self):
@@ -75,22 +64,15 @@ class PlatformManager:
         starting_ground_y = self.screen_height - 50
         starting_ground_height = 50
         starting_ground = pygame.Rect(start_ground_initial_x, starting_ground_y, start_ground_width, starting_ground_height)
-        self.platforms.append(starting_ground) # platforms[0]
+        self.platforms.append(starting_ground) 
 
-        # UKLONJENO: Desni nevidljivi zid
-        # right_invisible_wall_width = 10
-        # right_invisible_wall_x = starting_ground.right
-        # right_invisible_wall = pygame.Rect(right_invisible_wall_x, starting_ground.top, right_invisible_wall_width, starting_ground.height)
-        # self.platforms.append(right_invisible_wall) # Bio bi platforms[1]
-
-        # Lijevi zid sada postaje platforms[1] (ako nije bilo desnog zida)
         left_wall_width = 10
         left_wall_x = start_ground_initial_x - left_wall_width
         left_wall = pygame.Rect(left_wall_x, 0, left_wall_width, self.screen_height)
-        self.platforms.append(left_wall) # platforms[1] (prethodno platforms[2])
+        self.platforms.append(left_wall) 
 
         platforms_from_file = self._load_platforms_from_file()
-        self.platforms.extend(platforms_from_file) # Počinju od platforms[2]
+        self.platforms.extend(platforms_from_file) 
 
         if platforms_from_file:
             target_platform = platforms_from_file[-1]
@@ -100,7 +82,7 @@ class PlatformManager:
             goal_y = target_platform.y - goal_height
             self.goal = pygame.Rect(goal_x, goal_y, goal_width, goal_height)
         elif not self.goal:
-            print("Nema platformi iz datoteke, cilj nije automatski postavljen.")
+            pass
 
 
     def update_platforms(self, scroll_offset):
@@ -121,9 +103,7 @@ class PlatformManager:
                 except Exception as e:
                     pygame.draw.rect(screen, (0,150,0), (screen_x, ground_platform_rect.y, ground_platform_rect.width, ground_platform_rect.height))
 
-        # Platforme iz datoteke sada počinju od indeksa 2 (0=tlo, 1=lijevi zid)
         if self.platform_image_original:
-            # Počni od indeksa 2 jer je 0 tlo, a 1 lijevi zid (koji se ne crta eksplicitno slikom)
             for i in range(2, len(self.platforms)): 
                 platform_rect = self.platforms[i]
                 screen_x = platform_rect.x - view_offset_x
@@ -156,7 +136,6 @@ class PlatformManager:
 
 
         if self.platform_image_original:
-            # Počni od indeksa 2 jer je 0 tlo, a 1 lijevi zid
             for i in range(2, len(self.platforms)): 
                 platform_rect = self.platforms[i]
                 try:
