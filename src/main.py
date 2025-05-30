@@ -32,26 +32,30 @@ def run_game(level_filepath):
     font = pygame.font.SysFont(None, 80)
     timer_font = pygame.font.SysFont(None, 35)
 
-    # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI ---
-    # Izračunaj stvarnu visinu igrača (Player klasa ima scale_factor = 1.5)
-    player_visual_height = 50 * 1.5 # Originalna visina (50) * scale_factor (1.5) = 75
-    platform_start_y = SCREEN_HEIGHT - 50 # Vrh početne platforme je na 550 (600 - 50)
-    # Postavi igrača malo IZNAD platforme, npr. 20 piksela
-    player_initial_y = platform_start_y - player_visual_height - 20 # = 550 - 75 - 20 = 455
-    player = Player(100, player_initial_y, 50, 50)
-    # --- KRAJ PROMJENE POČETNE POZICIJE ---
-
     platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
     platform_manager.generate_platforms()
+
+    # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI (AŽURIRANO) ---
+    player = Player(100, 0, 50, 50) # Privremeno inicijaliziraj igrača da dobijemo njegovu visinu
+    first_platform_rect = platform_manager.platforms[0] # Dohvati prvu platformu
+    player_initial_y = first_platform_rect.top - player.rect.height # Izračunaj početnu Y poziciju
+    player.rect.y = player_initial_y # Postavi Y poziciju
+    player.vel_y = 0 # Postavi vertikalnu brzinu na 0
+    player.on_ground = True # Eksplicitno postavi da je igrač na zemlji
+    # --- KRAJ PROMJENE POČETNE POZICIJE ---
 
     start_time = pygame.time.get_ticks()
 
     def reset_game():
-        nonlocal player, platform_manager
-        # Koristi istu inicijalnu Y poziciju za reset
-        player.reset(100, player_initial_y)
+        nonlocal player, platform_manager, start_time
         platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
         platform_manager.generate_platforms()
+        first_platform_rect_reset = platform_manager.platforms[0]
+        player_initial_y_reset = first_platform_rect_reset.top - player.rect.height
+        player.reset(100, player_initial_y_reset)
+        player.vel_y = 0 # Ponovno osiguraj da nema vertikalne brzine
+        player.on_ground = True # Ponovno osiguraj da je na zemlji
+        start_time = pygame.time.get_ticks()
 
     def show_victory_screen(elapsed_time):
         screen.blit(win_image, (0, 0))
@@ -115,6 +119,7 @@ def run_game(level_filepath):
             print(f"Player fell off screen. Resetting game. (Frame {frame_counter})")
             reset_game()
             frame_counter = 0 # Resetiraj brojač frameova nakon reseta igre
+            start_time = pygame.time.get_ticks() # Reset the game timer
 
         requested_scroll_offset = 0
         if keys[pygame.K_RIGHT]:

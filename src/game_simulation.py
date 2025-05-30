@@ -1,11 +1,11 @@
-# src/game_simulation.py - AŽURIRANI KOD (s izmjenom početne pozicije igrača i VRLO DETALJNIM DEBUGIRANJEM)
+# src/game_simulation.py - ISPRAVLJENA VERZIJA
 
 import pygame
 import os
 import sys
-from .platforms import PlatformManager # Relativni import
-from .player import Player             # Relativni import
-from .ai_brain import Brain, AIAction  # Relativni import
+from .platforms import PlatformManager
+from .player import Player
+from .ai_brain import Brain, AIAction
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 FPS = 60
@@ -14,21 +14,18 @@ JUMP_STRENGTH = -15
 PLAYER_SPEED = 5
 
 MAX_ACTION_DURATION_FRAMES = 30
-MAX_SIMULATION_FRAMES_PER_BRAIN = 3600
 
 def run_simulation_for_brain(brain, level_filepath, render=False, current_generation=0, brain_idx=0):
     pygame.init()
 
     screen_for_simulation = None
     font = None
-
-    # Izračunaj stvarnu visinu igrača (Player klasa ima scale_factor = 1.5)
-    player_visual_height = 50 * 1.5 # Originalna visina (50) * scale_factor (1.5) = 75
-    platform_start_y = SCREEN_HEIGHT - 50 # Vrh početne platforme je na 550
+    background_image_sim = None # Inicijaliziraj na None
 
     if render:
         screen_for_simulation = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(f"Super Toni Bros - AI Gen: {current_generation} Brain: {brain_idx}")
+        
         base_path_sim = os.path.dirname(os.path.abspath(__file__))
         background_path_sim = os.path.join(base_path_sim, "..", "images", "Background.jpeg")
         try:
@@ -37,32 +34,52 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
             print(f"Error loading background image in simulation: {e}")
             print(f"Attempted path: {background_path_sim}")
             background_image_sim = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            background_image_sim.fill((200, 200, 255))
-        font = pygame.font.SysFont(None, 30)
-    else:
+            background_image_sim.fill((200, 200, 255)) 
+        
+        if not pygame.font.get_init():
+            pygame.font.init()
+        if pygame.font.get_init():
+            try:
+                font = pygame.font.SysFont(None, 30)
+            except Exception as e_font:
+                print(f"Greška pri učitavanju SysFont: {e_font}. Koristim defaultni font.")
+                try:
+                    font = pygame.font.Font(None, 30)
+                except Exception as e_font_default:
+                    print(f"Greška pri učitavanju defaultnog fonta: {e_font_default}. Font neće biti dostupan.")
+                    font = None
+        else:
+            print("Upozorenje: Pygame font modul nije inicijaliziran.")
+            font = None
+    else: 
         try:
             screen_for_simulation = pygame.display.set_mode((1, 1), pygame.NOFRAME)
         except pygame.error as e:
-            print(f"Warning: Could not set dummy display in headless mode: {e}. Image operations might fail or be slow.")
-        if pygame.font.get_init():
-             font = pygame.font.SysFont(None, 30)
-        else:
-            print("Warning: Font module not initialized in headless mode.")
+            print(f"Upozorenje: Ne mogu postaviti dummy display u headless modu: {e}.")
 
-    clock = pygame.time.Clock()
+    try:
+        platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
+        platform_manager.generate_platforms() 
+    except pygame.error as e:
+        print(f"KRITIČNA GREŠKA: Pygame greška tijekom inicijalizacije PlatformManager-a: {e}")
+        brain.fitness = -float('inf')
+        if render and screen_for_simulation and pygame.display.get_init():
+            pygame.display.quit()
+        return brain.fitness
 
-    # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI ---
-    # Postavi igrača malo IZNAD platforme, npr. 20 piksela
-    player_initial_y = platform_start_y - player_visual_height - 20 # Promijenjeno sa -10 na -20
-    player = Player(100, player_initial_y, 50, 50)
-    # --- KRAJ PROMJENE POČETNE POZICIJE ---
+    player_start_x_on_screen = 100
+    player_world_x = 0.0 
 
-    platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
-    platform_manager.generate_platforms()
+    player_visual_height = 50 * 1.5
+    platform_start_y = SCREEN_HEIGHT - 50
+    player_initial_y = platform_start_y - player_visual_height - 20
+    player = Player(player_start_x_on_screen, player_initial_y, 50, 50)
 
     brain.reset_instructions()
 
-    total_scroll_achieved = 0.0
+    max_world_x_achieved = 0.0
+    total_left_movement_world = 0.0
+    
     frames_survived = 0
     game_won_by_ai = False
 
@@ -71,177 +88,163 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
     jump_executed_for_current_action = False
 
     simulation_running = True
-    last_scroll = 0.0
+    
     stagnation_frames = 0
-    MAX_STAGNATION_FRAMES = 120
+    STAGNATION_LIMIT_MAX_X = 240 
+    last_check_world_x = player_world_x
 
-    previous_player_x = player.rect.x
+    view_offset_x = 0.0
 
-    for frame_num in range(MAX_SIMULATION_FRAMES_PER_BRAIN):
-        if not simulation_running:
-            break
+    clock = pygame.time.Clock()
 
+    while simulation_running:
         if render:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     simulation_running = False
-            if not simulation_running:
-                break
+                    brain.fitness = -float('inf')
+                    return brain.fitness 
+            if not simulation_running: break
 
         if action_frames_remaining <= 0:
             current_ai_action = brain.get_next_action()
             if current_ai_action is None:
-                simulation_running = False
-                break
+                if render and font: print(f"Brain {brain_idx} potrošio instrukcije.")
+                simulation_running = False; break
             action_frames_remaining = int(current_ai_action.hold_time * MAX_ACTION_DURATION_FRAMES)
             jump_executed_for_current_action = False
 
-        simulated_keys_pressed = {pygame.K_SPACE: False, pygame.K_LEFT: False, pygame.K_RIGHT: False}
+        current_x_direction = 0
         if current_ai_action:
             if current_ai_action.is_jump and player.on_ground and not jump_executed_for_current_action:
                 player.jump(JUMP_STRENGTH)
                 jump_executed_for_current_action = True
-
-            if current_ai_action.x_direction == -1:
-                simulated_keys_pressed[pygame.K_LEFT] = True
-            elif current_ai_action.x_direction == 1:
-                simulated_keys_pressed[pygame.K_RIGHT] = True
-
-        # --- DEBUG PRIJE PRIMJENE GRAVITACIJE ---
-        # if render: # Prikazuj samo kada je render omogućen da se ne zatrpa konzola u headless modu
-        #     print(f"--- Frame {frame_num} ---")
-        #     print(f"Before Gravity: Player Y={player.rect.y:.2f}, Bottom={player.rect.bottom:.2f}, Vel Y={player.vel_y:.2f}, On Ground={player.on_ground}")
-        #     if platform_manager.platforms:
-        #         first_platform = platform_manager.platforms[0]
-        #         print(f"  Platform 0 Top={first_platform.top}, Bottom={first_platform.bottom}")
-        # --- KRAJ DEBUG PRIJE GRAVITACIJE ---
+            current_x_direction = current_ai_action.x_direction
 
         player.apply_gravity(GRAVITY)
 
-        # --- DEBUG NAKON PRIMJENE GRAVITACIJE ---
-        # if render:
-        #     print(f"After Gravity: Player Y={player.rect.y:.2f}, Bottom={player.rect.bottom:.2f}, Vel Y={player.vel_y:.2f}")
-        # --- KRAJ DEBUG NAKON GRAVITACIJE ---
+        if player.rect.top > SCREEN_HEIGHT + 200: 
+            if render and font: print(f"Brain {brain_idx} PAO S EKRANA!")
+            brain.fitness = -300000.0; simulation_running = False; break
 
-
-        if player.rect.top > SCREEN_HEIGHT + 200:
-            if render:
-                print(f"Brain {brain_idx} (Gen {current_generation}) PAO S EKRANA! Fitness će biti negativan. (Frame {frame_num})")
-            brain.fitness = -100000.0
-            simulation_running = False
-            break
-
-        if frame_num == MAX_SIMULATION_FRAMES_PER_BRAIN - 1 and not game_won_by_ai:
-            if render:
-                print(f"Brain {brain_idx} (Gen {current_generation}) Istečeno vrijeme simulacije.")
-            simulation_running = False
-            break
-
-
-        requested_scroll_offset = 0
-        if simulated_keys_pressed[pygame.K_RIGHT]:
-            requested_scroll_offset = PLAYER_SPEED
+        world_movement_this_frame = 0
+        if current_x_direction == 1: 
+            world_movement_this_frame = PLAYER_SPEED
             player.facing_left = False
-        elif simulated_keys_pressed[pygame.K_LEFT]:
-            requested_scroll_offset = -PLAYER_SPEED
+        elif current_x_direction == -1: 
+            world_movement_this_frame = -PLAYER_SPEED
             player.facing_left = True
+        
+        player_world_x += world_movement_this_frame
 
-        actual_scroll_offset = requested_scroll_offset
+        if world_movement_this_frame < 0:
+            total_left_movement_world += abs(world_movement_this_frame)
 
-        if player.rect.left + actual_scroll_offset < 0:
-            actual_scroll_offset = -player.rect.left
-        if player.rect.right + actual_scroll_offset > SCREEN_WIDTH:
-            actual_scroll_offset = SCREEN_WIDTH - player.rect.right
+        view_offset_x = player_world_x # view_offset_x je koliko je svijet pomaknut ulijevo
 
-        platform_manager.update_platforms(actual_scroll_offset)
-        total_scroll_achieved -= actual_scroll_offset
-
-        if total_scroll_achieved < 10:
-            stagnation_frames += 1
+        if player_world_x > max_world_x_achieved:
+            max_world_x_achieved = player_world_x
+            stagnation_frames = 0 
         else:
-            stagnation_frames = 0
-        last_scroll = total_scroll_achieved
+            if abs(player_world_x - last_check_world_x) < 1.0 : 
+                 stagnation_frames +=1
+            if abs(player_world_x - last_check_world_x) >= 1.0: # Resetiraj ako ima hor. kretanja
+                 stagnation_frames = 0 
+        last_check_world_x = player_world_x
 
-        if stagnation_frames > MAX_STAGNATION_FRAMES:
-            if render:
-                print(f"Brain {brain_idx} (Gen {current_generation}) STAGNIRA! Kazna: -2000.0. (Frame {frame_num})")
-            brain.fitness = -2000.0
-            simulation_running = False
-            break
-
+        if stagnation_frames > STAGNATION_LIMIT_MAX_X :
+            if render and font: print(f"Brain {brain_idx} STAGNIRA (max X)! Prekid.")
+            simulation_running = False; break
+        
         player.on_ground = False
-        for plat_idx, plat_obj in enumerate(platform_manager.platforms):
-            if plat_idx == 2:
-                continue
-
-            # --- DEBUG PRIJE POZIVA COLLIDE_WITH_PLATFORM ---
-            # if render:
-            #     print(f"  Checking collision with platform at ({plat_obj.x}, {plat_obj.y}, {plat_obj.width}, {plat_obj.height})")
-            # --- KRAJ DEBUG PRIJE POZIVA COLLIDE_WITH_PLATFORM ---
-
-            if player.collide_with_platform(plat_obj):
-                player.on_ground = True
-                # --- DEBUG NAKON USPJEŠNE KOLIZIJE ---
-                # if render:
-                #     print(f"  Collision DETECTED! Player now on_ground={player.on_ground}, Vel Y={player.vel_y}")
-                # --- KRAJ DEBUG NAKON USPJEŠNE KOLIZIJE ---
-                break
-
-        # --- DEBUG NAKON SVIH PROVJERA KOLIZIJE ---
-        # if render:
-        #     print(f"End of Frame {frame_num} collision check: Player On Ground={player.on_ground}")
-        # --- KRAJ DEBUG NAKON SVIH PROVJERA KOLIZIJE ---
-
-        if platform_manager.goal and player.rect.colliderect(platform_manager.goal):
-            game_won_by_ai = True
-            simulation_running = False
-            break
+        for plat_obj_original in platform_manager.platforms:
+            # Za koliziju, X koordinata platforme treba biti relativna na ekran,
+            # view_offset_x je pomak svijeta ulijevo.
+            # Igrač je na player_start_x_on_screen (npr. 100).
+            # Ako je platforma na svjetskom X=500, a view_offset_x=400 (jer je igrač na svjetskom X=400),
+            # onda je ekranski X platforme = 500 - 400 = 100.
+            temp_plat_rect = pygame.Rect(plat_obj_original.x - view_offset_x, 
+                                         plat_obj_original.y, 
+                                         plat_obj_original.width, 
+                                         plat_obj_original.height)
+            if player.collide_with_platform(temp_plat_rect):
+                player.on_ground = True; break
+        
+        if platform_manager.goal:
+            goal_original = platform_manager.goal 
+            temp_goal_rect = pygame.Rect(goal_original.x - view_offset_x,
+                                         goal_original.y,
+                                         goal_original.width,
+                                         goal_original.height)
+            if player.rect.colliderect(temp_goal_rect):
+                game_won_by_ai = True; simulation_running = False; break
 
         player.update_image_direction()
 
-        if render and screen_for_simulation and font:
-            for x_bg in range(0, SCREEN_WIDTH, background_image_sim.get_width()):
-                for y_bg in range(0, SCREEN_HEIGHT, background_image_sim.get_height()):
-                    screen_for_simulation.blit(background_image_sim, (x_bg, y_bg))
+        if render and screen_for_simulation:
+            if background_image_sim:
+                bg_width = background_image_sim.get_width()
+                # view_offset_x je koliko je svijet pomaknut ulijevo
+                # Da bi se pozadina pomicala s svijetom, njen x_za_crtanje = -view_offset_x
+                # Modulo za ponavljanje:
+                render_x_bg = (-view_offset_x) % bg_width
+                screen_for_simulation.blit(background_image_sim, (render_x_bg - bg_width, 0))
+                screen_for_simulation.blit(background_image_sim, (render_x_bg, 0))
+            else:
+                 screen_for_simulation.fill((200,200,255)) 
 
-            platform_manager.draw(screen_for_simulation)
-            player.draw(screen_for_simulation)
+            # Pozovi metodu iz PlatformManager-a za crtanje platformi i cilja
+            platform_manager.draw_with_offset(screen_for_simulation, view_offset_x)
 
-            info_text_fitness = font.render(f"Fitness (scroll): {total_scroll_achieved:.0f}", True, (0,0,0))
-            info_text_frames = font.render(f"Frames: {frames_survived}/{MAX_SIMULATION_FRAMES_PER_BRAIN}", True, (0,0,0))
-            info_text_action = font.render(f"Action: {brain.current_instruction_number}/{len(brain.instructions)}", True, (0,0,0))
-            info_text_stagnation = font.render(f"Stagnacija: {stagnation_frames}/{MAX_STAGNATION_FRAMES}", True, (0,0,0))
-            screen_for_simulation.blit(info_text_fitness, (10, 10))
-            screen_for_simulation.blit(info_text_frames, (10, 40))
-            screen_for_simulation.blit(info_text_action, (10, 70))
-            screen_for_simulation.blit(info_text_stagnation, (10, 100))
+            player.draw(screen_for_simulation) 
+
+            if font: 
+                font_color = (0,0,0)
+                texts = [
+                    f"Max X (Svijet): {max_world_x_achieved:.0f}",
+                    f"Lijevo (Svijet): {total_left_movement_world:.0f}",
+                    f"Player Svijet X: {player_world_x:.0f}",
+                    f"View Offset X: {view_offset_x:.0f}", # view_offset_x je koliko je svijet pomaknut
+                    f"Okviri: {frames_survived}",
+                    f"Akcija: {brain.current_instruction_number}/{len(brain.instructions)} (Smjer: {current_x_direction})",
+                    f"Stagnacija: {stagnation_frames}/{STAGNATION_LIMIT_MAX_X}"
+                ]
+                for i, text_content in enumerate(texts):
+                    try:
+                        text_surface = font.render(text_content, True, font_color)
+                        screen_for_simulation.blit(text_surface, (10, 10 + i * 30))
+                    except Exception: pass 
 
             pygame.display.update()
-            clock.tick(FPS)
+            if clock: clock.tick(FPS)
 
         action_frames_remaining -= 1
         frames_survived += 1
-        previous_player_x = player.rect.x
+    # Kraj while petlje
 
-    fitness = total_scroll_achieved
+    fitness = max_world_x_achieved * 1.5 
+    penalty_factor_left_movement = 5.0 
+    fitness -= total_left_movement_world * penalty_factor_left_movement
+    
+    if player_world_x < -100: 
+        fitness -= 20000 
 
     if game_won_by_ai:
-        fitness += 1000000.0
-        fitness += (MAX_SIMULATION_FRAMES_PER_BRAIN - frames_survived) * 100
-        if render:
-            print(f"Brain {brain_idx} (Gen {current_generation}) POBJEDIO! Final Fitness: {fitness:.2f}")
+        fitness += 2000000.0 
+        fitness += (len(brain.instructions) - brain.current_instruction_number) * 200 
+        if render and font: print(f"Brain {brain_idx} POBJEDIO! Fitness: {fitness:.2f}")
     else:
-        fitness += frames_survived * 0.5
+        if max_world_x_achieved < 50:
+            fitness -= 50000 
+        elif brain.fitness != -300000.0 :
+            fitness += frames_survived * 0.01 
 
-        if total_scroll_achieved >= -50 and frames_survived > MAX_SIMULATION_FRAMES_PER_BRAIN * 0.1:
-             fitness -= 5000.0
+    if brain.fitness == -300000.0 and not game_won_by_ai:
+        pass 
+    else:
+        brain.fitness = fitness
 
-        if player.rect.top > SCREEN_HEIGHT + 200:
-            fitness -= 100000.0
-
-    brain.fitness = fitness
-
-    if render:
+    if render and screen_for_simulation and pygame.display.get_init():
         pygame.display.quit()
 
-    return fitness
+    return brain.fitness

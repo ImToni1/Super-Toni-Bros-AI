@@ -1,25 +1,31 @@
+# src/ai_brain.py
 import random
 
 class AIAction:
     def __init__(self, is_jump, hold_time, x_direction):
         self.is_jump = is_jump
-        self.hold_time = hold_time
-        self.x_direction = x_direction
+        self.hold_time = hold_time # Vrijeme trajanja akcije (0.1 do 1.0)
+        self.x_direction = x_direction # -1 (lijevo), 0 (stoji), 1 (desno)
 
     def clone(self):
         return AIAction(self.is_jump, self.hold_time, self.x_direction)
 
     def mutate(self):
-        self.hold_time += random.uniform(-0.3, 0.3)
+        # Mutiraj vrijeme trajanja
+        self.hold_time += random.uniform(-0.15, 0.15) # Manji raspon za finije podešavanje
         self.hold_time = max(0.1, min(self.hold_time, 1.0))
-        if random.random() < 0.1:
-            directions = [-1, 0, 1]
-            self.x_direction = random.choice(directions)
-        if random.random() < 0.05:
+
+        # Mutiraj smjer kretanja s određenom vjerojatnošću
+        if random.random() < 0.25: # 25% šanse za promjenu smjera
+            # Daj veći prioritet kretanju udesno pri mutaciji
+            self.x_direction = random.choice([-1, 0, 1, 1, 1, 1]) # Veća šansa za 1 (desno)
+        
+        # Mutiraj skok s manjom vjerojatnošću
+        if random.random() < 0.15: # 15% šanse za promjenu odluke o skoku
             self.is_jump = not self.is_jump
 
 class Brain:
-    JUMP_CHANCE = 0.4
+    JUMP_CHANCE = 0.35 # Malo veća šansa za inicijalni skok
 
     def __init__(self, instruction_size, randomize_instructions=True):
         self.instructions = []
@@ -30,11 +36,12 @@ class Brain:
             self.randomize(instruction_size)
 
     def _get_random_action(self):
-        is_jump = False
-        if random.random() < self.JUMP_CHANCE:
-            is_jump = True
-        hold_time = random.uniform(0.1, 1.0)
-        x_direction = 1  # AI uvijek ide desno
+        is_jump = random.random() < self.JUMP_CHANCE
+        hold_time = random.uniform(0.1, 0.8) # Preferiraj kraće do srednje držanje akcija
+        
+        # Inicijalno snažno favoriziraj kretanje udesno
+        x_direction = random.choices([-1, 0, 1], weights=[5, 15, 80], k=1)[0] # 80% šansa za desno, 15% za stajanje, 5% za lijevo
+        
         return AIAction(is_jump, hold_time, x_direction)
 
     def randomize(self, size):
@@ -49,7 +56,8 @@ class Brain:
 
     def reset_instructions(self):
         self.current_instruction_number = 0
-        self.fitness = 0.0
+        # Fitness se postavlja na kraju simulacije, ne treba ga ovdje resetirati na 0 ako se koristi za praćenje najboljeg
+        # self.fitness = 0.0 
 
     def clone(self):
         clone = Brain(len(self.instructions), randomize_instructions=False)
