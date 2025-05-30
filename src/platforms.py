@@ -91,7 +91,14 @@ class PlatformManager:
         if not self.platforms:
             return
 
-        RED = (255, 0, 0)
+        # --- DODAJ ZA DEBUGIRANJE ---
+        # Crtanje plavih pravokutnika oko platformi za vizualni prikaz kolizijskih boxova
+        for platform_rect in self.platforms:
+            pygame.draw.rect(screen, (0, 0, 255), platform_rect, 2)
+        if self.goal:
+            pygame.draw.rect(screen, (0, 255, 0), self.goal, 2) # Zeleni obrub za cilj
+        # --- KRAJ DEBUGIRANJA ---
+
 
         if len(self.platforms) > 0:
             ground_platform_rect = self.platforms[0]

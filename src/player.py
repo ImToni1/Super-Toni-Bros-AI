@@ -1,4 +1,4 @@
-# src/player.py - AŽURIRANI KOD (KLJUČNO ZA KOLIZIJU)
+# src/player.py - AŽURIRANI KOD (KLJUČNO ZA KOLIZIJU i DEBUGIRANJE)
 
 import pygame
 import os
@@ -43,34 +43,27 @@ class Player:
         if not self.rect.colliderect(platform_rect):
             return False
 
-        # Ako igrač pada (vel_y > 0)
-        # I donji dio igrača je PRELAZIO ili je upravo na vrhu platforme
-        # I gornji dio igrača je iznad vrha platforme (da spriječimo koliziju odozdo)
-        if self.vel_y >= 0 and \
-           self.rect.bottom >= platform_rect.top and \
-           self.rect.top < platform_rect.top: # Dodatna provjera: igračev vrh je iznad platforme
+        # Provjera kolizije odozgo (slijetanje na platformu)
+        # Izračunaj prethodni donji rub igrača (prije ovog framea)
+        previous_bottom = self.rect.bottom - self.vel_y 
 
-            # Provjerite da li igrač pada na vrh platforme (nije s boka)
-            # Dno igrača je bilo iznad platforme u prošlom koraku i sada je ispod ili na njoj
-            # Ovo rješava problem "probijanja" ako se igrač kreće prebrzo
-            player_bottom_at_prev_frame_y = self.rect.y - self.vel_y + self.rect.height
+        # Ako igrač pada (ili miruje na vrhu) I donji dio igrača je prešao vrh platforme
+        # I prethodni donji dio igrača je bio iznad vrha platforme
+        if self.vel_y >= 0 and self.rect.bottom >= platform_rect.top and previous_bottom <= platform_rect.top:
+            self.rect.bottom = platform_rect.top  # Postavi igrača točno na vrh platforme
+            self.vel_y = 0  # Zaustavi vertikalno kretanje
+            self.on_ground = True  # Igrač je na zemlji
+            return True # Kolizija s gornje strane
 
-            if player_bottom_at_prev_frame_y <= platform_rect.top:
-                self.rect.bottom = platform_rect.top # Postavi igrača točno na vrh platforme
-                self.vel_y = 0 # Zaustavi vertikalno kretanje
-                self.on_ground = True # Igrač je na zemlji
-                return True
-        
         # Ako igrač ide gore i udara platformu odozdo
-        if self.vel_y < 0 and \
-           self.rect.top <= platform_rect.bottom and \
-           self.rect.bottom > platform_rect.bottom:
-            self.rect.top = platform_rect.bottom # Postavi igrača točno ispod platforme
-            self.vel_y = 0 # Zaustavi vertikalno kretanje
-            return True # Vrati True jer je došlo do kolizije
+        # Trenutni vrh je prošao dno platforme (ili je na njemu)
+        # I prethodni vrh igrača je bio ispod dna platforme
+        if self.vel_y < 0 and self.rect.top <= platform_rect.bottom and (self.rect.top - self.vel_y) >= platform_rect.bottom:
+            self.rect.top = platform_rect.bottom  # Postavi igrača točno ispod platforme
+            self.vel_y = 0  # Zaustavi vertikalno kretanje
+            return True # Kolizija s donje strane
 
-        return False # Nema kolizije odozgo (tj. kolizija s boka)
-
+        return False # Nema kolizije odozgo ili odozdo koja bi zaustavila vertikalno kretanje
 
     def update_image_direction(self):
         if self.facing_left:
@@ -81,3 +74,7 @@ class Player:
     def draw(self, screen):
         self.update_image_direction()
         screen.blit(self.image, (self.rect.x, self.rect.y))
+        # --- DODAJ ZA DEBUGIRANJE ---
+        # Crtanje crvenog pravokutnika oko igrača za vizualni prikaz kolizijskog boxa
+        pygame.draw.rect(screen, (255, 0, 0), self.rect, 2) 
+        # --- KRAJ DEBUGIRANJA ---

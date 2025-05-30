@@ -1,4 +1,4 @@
-# src/game_simulation.py - AŽURIRANI KOD (s manjom promjenom početne pozicije)
+# src/game_simulation.py - AŽURIRANI KOD (s izmjenom početne pozicije igrača i VRLO DETALJNIM DEBUGIRANJEM)
 
 import pygame
 import os
@@ -22,8 +22,9 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
     screen_for_simulation = None
     font = None
 
-    player_height = 75 # Izračunato iz player.py (50 * 1.5)
-    platform_start_y = SCREEN_HEIGHT - 50 # Vrh početne platforme
+    # Izračunaj stvarnu visinu igrača (Player klasa ima scale_factor = 1.5)
+    player_visual_height = 50 * 1.5 # Originalna visina (50) * scale_factor (1.5) = 75
+    platform_start_y = SCREEN_HEIGHT - 50 # Vrh početne platforme je na 550
 
     if render:
         screen_for_simulation = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -51,11 +52,8 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
     clock = pygame.time.Clock()
 
     # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI ---
-    # Logika iz platforms.py: starting_ground_y = self.screen_height - 50
-    # Player bi trebao biti iznad toga. Npr. 50px iznad vrha platforme.
-    # Player width/height su 50, 50.
-    platform_start_y = SCREEN_HEIGHT - 50
-    player_initial_y = platform_start_y - 50 - 5 # Postavi igrača 5 piksela iznad platforme kad sleti
+    # Postavi igrača malo IZNAD platforme, npr. 20 piksela
+    player_initial_y = platform_start_y - player_visual_height - 20 # Promijenjeno sa -10 na -20
     player = Player(100, player_initial_y, 50, 50)
     # --- KRAJ PROMJENE POČETNE POZICIJE ---
 
@@ -109,16 +107,33 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
             elif current_ai_action.x_direction == 1:
                 simulated_keys_pressed[pygame.K_RIGHT] = True
 
+        # --- DEBUG PRIJE PRIMJENE GRAVITACIJE ---
+        # if render: # Prikazuj samo kada je render omogućen da se ne zatrpa konzola u headless modu
+        #     print(f"--- Frame {frame_num} ---")
+        #     print(f"Before Gravity: Player Y={player.rect.y:.2f}, Bottom={player.rect.bottom:.2f}, Vel Y={player.vel_y:.2f}, On Ground={player.on_ground}")
+        #     if platform_manager.platforms:
+        #         first_platform = platform_manager.platforms[0]
+        #         print(f"  Platform 0 Top={first_platform.top}, Bottom={first_platform.bottom}")
+        # --- KRAJ DEBUG PRIJE GRAVITACIJE ---
+
         player.apply_gravity(GRAVITY)
 
+        # --- DEBUG NAKON PRIMJENE GRAVITACIJE ---
+        # if render:
+        #     print(f"After Gravity: Player Y={player.rect.y:.2f}, Bottom={player.rect.bottom:.2f}, Vel Y={player.vel_y:.2f}")
+        # --- KRAJ DEBUG NAKON GRAVITACIJE ---
+
+
         if player.rect.top > SCREEN_HEIGHT + 200:
-            print(f"Brain {brain_idx} (Gen {current_generation}) PAO S EKRANA! Fitness će biti negativan.")
+            if render:
+                print(f"Brain {brain_idx} (Gen {current_generation}) PAO S EKRANA! Fitness će biti negativan. (Frame {frame_num})")
             brain.fitness = -100000.0
             simulation_running = False
             break
 
         if frame_num == MAX_SIMULATION_FRAMES_PER_BRAIN - 1 and not game_won_by_ai:
-            print(f"Brain {brain_idx} (Gen {current_generation}) Istečeno vrijeme simulacije.")
+            if render:
+                print(f"Brain {brain_idx} (Gen {current_generation}) Istečeno vrijeme simulacije.")
             simulation_running = False
             break
 
@@ -148,7 +163,8 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
         last_scroll = total_scroll_achieved
 
         if stagnation_frames > MAX_STAGNATION_FRAMES:
-            print(f"Brain {brain_idx} (Gen {current_generation}) STAGNIRA! Kazna: -2000.0.")
+            if render:
+                print(f"Brain {brain_idx} (Gen {current_generation}) STAGNIRA! Kazna: -2000.0. (Frame {frame_num})")
             brain.fitness = -2000.0
             simulation_running = False
             break
@@ -158,9 +174,23 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
             if plat_idx == 2:
                 continue
 
+            # --- DEBUG PRIJE POZIVA COLLIDE_WITH_PLATFORM ---
+            # if render:
+            #     print(f"  Checking collision with platform at ({plat_obj.x}, {plat_obj.y}, {plat_obj.width}, {plat_obj.height})")
+            # --- KRAJ DEBUG PRIJE POZIVA COLLIDE_WITH_PLATFORM ---
+
             if player.collide_with_platform(plat_obj):
                 player.on_ground = True
+                # --- DEBUG NAKON USPJEŠNE KOLIZIJE ---
+                # if render:
+                #     print(f"  Collision DETECTED! Player now on_ground={player.on_ground}, Vel Y={player.vel_y}")
+                # --- KRAJ DEBUG NAKON USPJEŠNE KOLIZIJE ---
                 break
+
+        # --- DEBUG NAKON SVIH PROVJERA KOLIZIJE ---
+        # if render:
+        #     print(f"End of Frame {frame_num} collision check: Player On Ground={player.on_ground}")
+        # --- KRAJ DEBUG NAKON SVIH PROVJERA KOLIZIJE ---
 
         if platform_manager.goal and player.rect.colliderect(platform_manager.goal):
             game_won_by_ai = True
@@ -198,7 +228,8 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
     if game_won_by_ai:
         fitness += 1000000.0
         fitness += (MAX_SIMULATION_FRAMES_PER_BRAIN - frames_survived) * 100
-        print(f"Brain {brain_idx} (Gen {current_generation}) POBJEDIO! Final Fitness: {fitness:.2f}")
+        if render:
+            print(f"Brain {brain_idx} (Gen {current_generation}) POBJEDIO! Final Fitness: {fitness:.2f}")
     else:
         fitness += frames_survived * 0.5
 
