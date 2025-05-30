@@ -18,36 +18,28 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# --- ISPIS ZA DEBUGIRANJE (možete ih ukloniti nakon što proradi) ---
-# print(f"sys.path nakon modifikacije: {sys.path}")
-# print(f"Korijenski direktorij projekta: {project_root}")
-# --- KRAJ ISPISA ZA DEBUGIRANJE ---
-
 try:
-    # AŽURIRANI IMPORTI prema novoj strukturi
-    from src.manual_game import main_manual as main_module
+    from src.manual_game import manual_game as main_module
     from src.ai_game import main_ai as main_ga_module
 
     run_manual_game = main_module.run_game
     run_genetic_algorithm = main_ga_module.run_genetic_algorithm
 
 except ImportError as e:
-    print(f"Greška pri importu modula igre (src.manual_game.main_manual ili src.ai_game.main_ai): {e}") # AŽURIRANO
+    print(f"Greška pri importu modula igre (src.manual_game.manual_game ili src.ai_game.main_ai): {e}") 
     print("Molimo provjerite da li su datoteke na ispravnim mjestima i da li __init__.py datoteke postoje u src, src/manual_game i src/ai_game direktorijima.")
     sys.exit(1)
 except AttributeError as e:
-    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/manual_game/main_manual.py' i 'run_genetic_algorithm' u 'src/ai_game/main_ai.py' na top-levelu.") # AŽURIRANO
+    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/manual_game/manual_game.py' i 'run_genetic_algorithm' u 'src/ai_game/main_ai.py' na top-levelu.") 
     sys.exit(1)
 except Exception as e:
     print(f"Neočekivana greška prilikom importa: {e}")
     sys.exit(1)
 
-# Inicijalizacija Pygame font modula (pygame.init() gore bi ovo trebao pokriti, ali ne škodi)
 if not pygame.font.get_init():
     pygame.font.init()
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
-# screen je sada modul-level varijabla, inicijalizirana nakon pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Super Toni Bros - Izbornik")
 
@@ -86,12 +78,10 @@ def draw_button(surface, rect, text, text_color, button_color, hover_color):
 def main_menu():
     global screen
 
-    # AŽURIRANA PUTANJA do level.txt datoteke.
     level_filepath_menu = os.path.join(project_root, "src", "core", "level.txt")
 
     background_image = None
     try:
-        # Putanja do pozadinske slike ostaje relativna na project_root
         background_path_menu = os.path.join(project_root, "images", "Background.jpeg")
         if os.path.exists(background_path_menu):
             background_image = pygame.image.load(background_path_menu).convert()
@@ -120,11 +110,16 @@ def main_menu():
                     if is_manual_hover:
                         print("Pokretanje ručne igre...")
                         run_manual_game(level_filepath_menu)
+                        # DODANO: Očisti preostale klikove miša iz reda događaja
+                        pygame.event.clear(pygame.MOUSEBUTTONDOWN)
+                        pygame.event.clear(pygame.MOUSEBUTTONUP)
+                        # ----------------------------------------------------
                         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
                         print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
+      
                         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:
@@ -135,7 +130,7 @@ def main_menu():
             screen.blit(background_image, (0, 0))
         else:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0,0,0,120))
+            overlay.fill((0,0,0,120)) 
             screen.blit(overlay, (0,0))
 
         draw_text("Super Toni Bros", title_font, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
@@ -144,7 +139,7 @@ def main_menu():
         draw_button(screen, exit_button_rect, "Izlaz", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
 
         pygame.display.update()
-        pygame.time.Clock().tick(30)
+        pygame.time.Clock().tick(30) 
         
     pygame.quit()
     sys.exit()

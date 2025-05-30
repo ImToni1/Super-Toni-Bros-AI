@@ -75,20 +75,22 @@ class PlatformManager:
         starting_ground_y = self.screen_height - 50
         starting_ground_height = 50
         starting_ground = pygame.Rect(start_ground_initial_x, starting_ground_y, start_ground_width, starting_ground_height)
-        self.platforms.append(starting_ground)
+        self.platforms.append(starting_ground) # platforms[0]
 
-        right_invisible_wall_width = 10
-        right_invisible_wall_x = starting_ground.right
-        right_invisible_wall = pygame.Rect(right_invisible_wall_x, starting_ground.top, right_invisible_wall_width, starting_ground.height)
-        self.platforms.append(right_invisible_wall)
+        # UKLONJENO: Desni nevidljivi zid
+        # right_invisible_wall_width = 10
+        # right_invisible_wall_x = starting_ground.right
+        # right_invisible_wall = pygame.Rect(right_invisible_wall_x, starting_ground.top, right_invisible_wall_width, starting_ground.height)
+        # self.platforms.append(right_invisible_wall) # Bio bi platforms[1]
 
+        # Lijevi zid sada postaje platforms[1] (ako nije bilo desnog zida)
         left_wall_width = 10
         left_wall_x = start_ground_initial_x - left_wall_width
         left_wall = pygame.Rect(left_wall_x, 0, left_wall_width, self.screen_height)
-        self.platforms.append(left_wall)
+        self.platforms.append(left_wall) # platforms[1] (prethodno platforms[2])
 
         platforms_from_file = self._load_platforms_from_file()
-        self.platforms.extend(platforms_from_file)
+        self.platforms.extend(platforms_from_file) # Počinju od platforms[2]
 
         if platforms_from_file:
             target_platform = platforms_from_file[-1]
@@ -119,8 +121,10 @@ class PlatformManager:
                 except Exception as e:
                     pygame.draw.rect(screen, (0,150,0), (screen_x, ground_platform_rect.y, ground_platform_rect.width, ground_platform_rect.height))
 
+        # Platforme iz datoteke sada počinju od indeksa 2 (0=tlo, 1=lijevi zid)
         if self.platform_image_original:
-            for i in range(3, len(self.platforms)):
+            # Počni od indeksa 2 jer je 0 tlo, a 1 lijevi zid (koji se ne crta eksplicitno slikom)
+            for i in range(2, len(self.platforms)): 
                 platform_rect = self.platforms[i]
                 screen_x = platform_rect.x - view_offset_x
                 if screen_x < self.screen_width and screen_x + platform_rect.width > 0:
@@ -152,7 +156,8 @@ class PlatformManager:
 
 
         if self.platform_image_original:
-            for i in range(3, len(self.platforms)):
+            # Počni od indeksa 2 jer je 0 tlo, a 1 lijevi zid
+            for i in range(2, len(self.platforms)): 
                 platform_rect = self.platforms[i]
                 try:
                     scaled_platform_image = pygame.transform.scale(self.platform_image_original, (platform_rect.width, platform_rect.height))

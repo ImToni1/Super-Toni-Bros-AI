@@ -91,4 +91,3 @@ class Player:
     def draw(self, screen):
         self.update_image_direction()
         screen.blit(self.image, (self.rect.x, self.rect.y))
-        pygame.draw.rect(screen, (255, 0, 0), self.rect, 2)
