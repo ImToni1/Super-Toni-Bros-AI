@@ -63,9 +63,6 @@ Super Toni Bros is a simple platformer game built in Python using the `pygame` l
 
 ## Requirements
 
--   Python 3.x
--   `pygame` library
-
 > [!TIP]
 > Install `pygame` if it's not already installed:
 > ```bash
