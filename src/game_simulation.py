@@ -1,9 +1,11 @@
+# src/game_simulation.py - AŽURIRANI KOD (s manjom promjenom početne pozicije)
+
 import pygame
 import os
 import sys
-from platforms import PlatformManager
-from player import Player
-from ai_brain import Brain, AIAction
+from .platforms import PlatformManager # Relativni import
+from .player import Player             # Relativni import
+from .ai_brain import Brain, AIAction  # Relativni import
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 FPS = 60
@@ -19,6 +21,9 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
     screen_for_simulation = None
     font = None
+
+    player_height = 75 # Izračunato iz player.py (50 * 1.5)
+    platform_start_y = SCREEN_HEIGHT - 50 # Vrh početne platforme
 
     if render:
         screen_for_simulation = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -45,7 +50,15 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
     clock = pygame.time.Clock()
 
-    player = Player(100, SCREEN_HEIGHT - 125, 50, 50) # PROMIJENJENO: Ispravljena početna Y-koordinata
+    # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI ---
+    # Logika iz platforms.py: starting_ground_y = self.screen_height - 50
+    # Player bi trebao biti iznad toga. Npr. 50px iznad vrha platforme.
+    # Player width/height su 50, 50.
+    platform_start_y = SCREEN_HEIGHT - 50
+    player_initial_y = platform_start_y - 50 - 5 # Postavi igrača 5 piksela iznad platforme kad sleti
+    player = Player(100, player_initial_y, 50, 50)
+    # --- KRAJ PROMJENE POČETNE POZICIJE ---
+
     platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
     platform_manager.generate_platforms()
 
@@ -62,7 +75,9 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
     simulation_running = True
     last_scroll = 0.0
     stagnation_frames = 0
-    MAX_STAGNATION_FRAMES = 60  # npr. 1 sekunda
+    MAX_STAGNATION_FRAMES = 120
+
+    previous_player_x = player.rect.x
 
     for frame_num in range(MAX_SIMULATION_FRAMES_PER_BRAIN):
         if not simulation_running:
@@ -96,9 +111,17 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
         player.apply_gravity(GRAVITY)
 
-        if player.rect.top > SCREEN_HEIGHT:
+        if player.rect.top > SCREEN_HEIGHT + 200:
+            print(f"Brain {brain_idx} (Gen {current_generation}) PAO S EKRANA! Fitness će biti negativan.")
+            brain.fitness = -100000.0
             simulation_running = False
             break
+
+        if frame_num == MAX_SIMULATION_FRAMES_PER_BRAIN - 1 and not game_won_by_ai:
+            print(f"Brain {brain_idx} (Gen {current_generation}) Istečeno vrijeme simulacije.")
+            simulation_running = False
+            break
+
 
         requested_scroll_offset = 0
         if simulated_keys_pressed[pygame.K_RIGHT]:
@@ -110,7 +133,6 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
         actual_scroll_offset = requested_scroll_offset
 
-        # Ograniči kretanje tako da igrač ne može izaći iz ekrana desno ili lijevo
         if player.rect.left + actual_scroll_offset < 0:
             actual_scroll_offset = -player.rect.left
         if player.rect.right + actual_scroll_offset > SCREEN_WIDTH:
@@ -119,28 +141,25 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
         platform_manager.update_platforms(actual_scroll_offset)
         total_scroll_achieved -= actual_scroll_offset
 
-        # --- DETEKCIJA ZABIJANJA U ZID ---
-        if abs(total_scroll_achieved - last_scroll) < 1.0:
+        if total_scroll_achieved < 10:
             stagnation_frames += 1
         else:
             stagnation_frames = 0
         last_scroll = total_scroll_achieved
 
         if stagnation_frames > MAX_STAGNATION_FRAMES:
-            # Penaliziraj i prekini simulaciju
-            fitness = total_scroll_achieved - 500 # PROMIJENJENO: Kazna smanjena s 1000 na 500
-            brain.fitness = fitness
-            simulation_running = False # Dodano da se osigura prekid
-            # break # 'break' je suvišan jer je već postavljeno simulation_running = False
+            print(f"Brain {brain_idx} (Gen {current_generation}) STAGNIRA! Kazna: -2000.0.")
+            brain.fitness = -2000.0
+            simulation_running = False
+            break
 
         player.on_ground = False
         for plat_idx, plat_obj in enumerate(platform_manager.platforms):
-            if plat_idx == 2 and player.rect.colliderect(plat_obj):
-                pass
+            if plat_idx == 2:
+                continue
 
             if player.collide_with_platform(plat_obj):
-                if plat_idx != 2:
-                    player.on_ground = True
+                player.on_ground = True
                 break
 
         if platform_manager.goal and player.rect.colliderect(platform_manager.goal):
@@ -161,29 +180,33 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
             info_text_fitness = font.render(f"Fitness (scroll): {total_scroll_achieved:.0f}", True, (0,0,0))
             info_text_frames = font.render(f"Frames: {frames_survived}/{MAX_SIMULATION_FRAMES_PER_BRAIN}", True, (0,0,0))
             info_text_action = font.render(f"Action: {brain.current_instruction_number}/{len(brain.instructions)}", True, (0,0,0))
+            info_text_stagnation = font.render(f"Stagnacija: {stagnation_frames}/{MAX_STAGNATION_FRAMES}", True, (0,0,0))
             screen_for_simulation.blit(info_text_fitness, (10, 10))
             screen_for_simulation.blit(info_text_frames, (10, 40))
             screen_for_simulation.blit(info_text_action, (10, 70))
+            screen_for_simulation.blit(info_text_stagnation, (10, 100))
 
             pygame.display.update()
             clock.tick(FPS)
 
         action_frames_remaining -= 1
         frames_survived += 1
+        previous_player_x = player.rect.x
 
     fitness = total_scroll_achieved
 
     if game_won_by_ai:
-        fitness += 100000.0
-        fitness += (MAX_SIMULATION_FRAMES_PER_BRAIN - frames_survived) * 10
+        fitness += 1000000.0
+        fitness += (MAX_SIMULATION_FRAMES_PER_BRAIN - frames_survived) * 100
+        print(f"Brain {brain_idx} (Gen {current_generation}) POBJEDIO! Final Fitness: {fitness:.2f}")
     else:
-        fitness += frames_survived * 0.1
+        fitness += frames_survived * 0.5
 
-    if total_scroll_achieved < 50 and frames_survived > MAX_SIMULATION_FRAMES_PER_BRAIN * 0.5:
-        fitness -= 2000 # PROMIJENJENO: Kazna smanjena s 10000 na 2000
+        if total_scroll_achieved >= -50 and frames_survived > MAX_SIMULATION_FRAMES_PER_BRAIN * 0.1:
+             fitness -= 5000.0
 
-    if player.rect.top > SCREEN_HEIGHT and not game_won_by_ai:
-        fitness -= 10000 # PROMIJENJENO: Kazna smanjena s 50000 na 10000
+        if player.rect.top > SCREEN_HEIGHT + 200:
+            fitness -= 100000.0
 
     brain.fitness = fitness
 

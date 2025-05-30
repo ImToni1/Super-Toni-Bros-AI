@@ -1,10 +1,12 @@
+# src/main.py - AŽURIRANI KOD (s manjom promjenom početne pozicije)
+
 import pygame
 import sys
 import os
-from platforms import PlatformManager
-from player import Player
+from .platforms import PlatformManager
+from .player import Player
 
-LEVEL_FILEPATH = "level.txt" 
+LEVEL_FILEPATH = "level.txt"
 
 def run_game(level_filepath):
     pygame.init()
@@ -25,12 +27,17 @@ def run_game(level_filepath):
     FPS = 60
     gravity = 0.8
     jump_strength = -15
-    speed = 5 
+    speed = 5
 
     font = pygame.font.SysFont(None, 80)
     timer_font = pygame.font.SysFont(None, 35)
 
-    player = Player(100, SCREEN_HEIGHT - 125, 50, 50) # PROMIJENJENO: Ispravljena početna Y-koordinata
+    # --- POČETNA POZICIJA IGRAČA PRILAGOĐENA PRVOJ PLATFORMI ---
+    platform_start_y = SCREEN_HEIGHT - 50
+    player_initial_y = platform_start_y - 50 - 5 # Postavi igrača 5 piksela iznad platforme kad sleti
+    player = Player(100, player_initial_y, 50, 50)
+    # --- KRAJ PROMJENE POČETNE POZICIJE ---
+
     platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
     platform_manager.generate_platforms()
 
@@ -38,7 +45,7 @@ def run_game(level_filepath):
 
     def reset_game():
         nonlocal player, platform_manager
-        player.reset(100, SCREEN_HEIGHT - 125) # PROMIJENJENO: Ispravljena Y-koordinata za reset
+        player.reset(100, player_initial_y) # Koristi istu inicijalnu Y poziciju za reset
         platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
         platform_manager.generate_platforms()
 
@@ -58,18 +65,18 @@ def run_game(level_filepath):
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN: 
-                    waiting = False 
-            if not waiting: 
-                break 
-    
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    waiting = False
+            if not waiting:
+                break
+
     running = True
-    game_won = False 
-    victory_elapsed_time = 0 
+    game_won = False
+    victory_elapsed_time = 0
 
     while running:
         clock.tick(FPS)
-        
+
         if not game_won:
             current_ticks = pygame.time.get_ticks()
             elapsed_time = (current_ticks - start_time) / 1000
@@ -85,7 +92,7 @@ def run_game(level_filepath):
 
         player.apply_gravity(gravity)
 
-        if player.rect.top > SCREEN_HEIGHT: 
+        if player.rect.top > SCREEN_HEIGHT:
             reset_game()
 
         requested_scroll_offset = 0
@@ -93,43 +100,43 @@ def run_game(level_filepath):
             requested_scroll_offset = speed
             player.facing_left = False
         elif keys[pygame.K_LEFT]:
-            requested_scroll_offset = -speed 
+            requested_scroll_offset = -speed
             player.facing_left = True
 
         actual_scroll_offset = requested_scroll_offset
 
-        if requested_scroll_offset < 0: 
+        if requested_scroll_offset < 0:
             if len(platform_manager.platforms) > 2:
                 left_wall = platform_manager.platforms[2]
                 if (left_wall.right - requested_scroll_offset) > player.rect.left:
-                    actual_scroll_offset = left_wall.right - player.rect.left 
+                    actual_scroll_offset = left_wall.right - player.rect.left
                     actual_scroll_offset = max(actual_scroll_offset, requested_scroll_offset)
 
-        elif requested_scroll_offset > 0: 
+        elif requested_scroll_offset > 0:
             if len(platform_manager.platforms) > 1:
                 right_wall = platform_manager.platforms[1]
                 if (right_wall.left - requested_scroll_offset) < player.rect.right:
                     actual_scroll_offset = min(actual_scroll_offset, requested_scroll_offset)
-        
+
         platform_manager.update_platforms(actual_scroll_offset)
 
         player.on_ground = False
         for plat_idx, plat in enumerate(platform_manager.platforms):
-            if plat_idx == 2: 
-                if player.rect.colliderect(plat): 
-                    pass 
-                continue 
+            if plat_idx == 2:
+                if player.rect.colliderect(plat):
+                    pass
+                continue
 
             if player.collide_with_platform(plat):
-                player.on_ground = True 
+                player.on_ground = True
                 break
-        
+
         if not game_won and platform_manager.goal and player.rect.colliderect(platform_manager.goal):
-            game_won = True 
-            victory_elapsed_time = elapsed_time 
+            game_won = True
+            victory_elapsed_time = elapsed_time
             show_victory_screen(victory_elapsed_time)
-            running = False 
-            break 
+            running = False
+            break
 
         player.draw(screen)
         platform_manager.draw(screen)

@@ -1,29 +1,51 @@
+# start.py - FINALNA IZMJENA ZA RJEŠAVANJE PROBLEMA S IMPORTOM
+
 import os
 import sys
 import pygame
 
-# Set the environment variable BEFORE importing pygame.
+# Postavi varijablu okoline PRIJE uvoza Pygamea.
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 
-src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+# Dohvati korijenski direktorij projekta (gdje se nalazi start.py)
+project_root = os.path.dirname(os.path.abspath(__file__))
 
+# Dodaj korijenski direktorij projekta u sys.path
+# Ovo omogućuje uvoz 'src' kao paketa, a unutar njega 'main' i 'main_ga'
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-if src_path not in sys.path:
-    sys.path.insert(0, src_path) # Corrected line: removed the extra 'sys.'
+# --- ISPIS ZA DEBUGIRANJE (možete ih ukloniti nakon što proradi) ---
+print(f"sys.path nakon modifikacije: {sys.path}")
+print(f"Pokušavam uvesti iz paketa 'src' u: {project_root}")
+# --- KRAJ ISPISA ZA DEBUGIRANJE ---
 
 try:
-    from main import run_game as run_manual_game
-    from main_ga import run_genetic_algorithm
+    # Sada, uvozite module koristeći njihov put unutar paketa 'src'.
+    # Ako uvoz prođe, to znači da su src/main.py i src/main_ga.py pronađeni
+    import src.main as main_module
+    import src.main_ga as main_ga_module
+
+    # Dodijelite funkcije varijablama
+    run_manual_game = main_module.run_game
+    run_genetic_algorithm = main_ga_module.run_genetic_algorithm
+
 except ImportError as e:
-    print(f"Greška pri importu modula igre (main.py ili main_ga.py): {e}")
-    print(f"Provjerite jesu li datoteke 'main.py' i 'main_ga.py' u direktoriju: '{src_path}'.")
+    print(f"Greška pri importu modula igre (src.main ili src.main_ga): {e}")
+    print(f"Provjerite jesu li datoteke 'main.py' i 'main_ga.py' u direktoriju: '{os.path.join(project_root, 'src')}'.")
     print(f"Također, provjerite jesu li importi unutar tih datoteka prilagođeni (bez vodeće točke).")
     print(f"Trenutni sys.path: {sys.path}")
+    sys.exit(1)
+except AttributeError as e:
+    print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/main.py' i 'run_genetic_algorithm' u 'src/main_ga.py' na top-levelu.")
+    print(f"Također, provjerite da nema drugih 'main.py' ili 'main_ga.py' datoteka u vašem Python PATH-u koje bi mogle uzrokovati konflikt.")
     sys.exit(1)
 except Exception as e:
     print(f"Neočekivana greška prilikom importa: {e}")
     sys.exit(1)
 
+# Inicijalizacija Pygame font modula.
+# Potpuna pygame.init() se poziva unutar run_game i run_simulation_for_brain.
 pygame.font.init()
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -63,12 +85,13 @@ def draw_button(surface, rect, text, text_color, button_color, hover_color):
     return is_hovering
 
 def main_menu():
-    level_filepath_menu = os.path.join(src_path, "level.txt")
+    # Put do level.txt datoteke. Sada koristi project_root i 'src' poddirektorij.
+    level_filepath_menu = os.path.join(project_root, "src", "level.txt")
 
     background_image = None
     try:
-        project_root_path = os.path.dirname(os.path.abspath(__file__))
-        background_path_menu = os.path.join(project_root_path, "images", "Background.jpeg")
+        # project_root je već definiran gore
+        background_path_menu = os.path.join(project_root, "images", "Background.jpeg")
         if os.path.exists(background_path_menu):
             background_image = pygame.image.load(background_path_menu).convert()
             background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -105,14 +128,14 @@ def main_menu():
                     if is_manual_hover:
                         print("Pokretanje ručne igre...")
                         run_manual_game(level_filepath_menu)
-                        # After game returns, re-initialize pygame for the menu loop
-                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Re-create display for menu
+                        # Nakon povratka iz igre, ponovno inicijaliziraj pygame za petlju izbornika
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Ponovno kreiraj display za izbornik
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
                         print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
-                        # After GA returns, re-initialize pygame for the menu loop
-                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Re-create display for menu
+                        # Nakon povratka iz GA, ponovno inicijaliziraj pygame za petlju izbornika
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Ponovno kreiraj display za izbornik
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:
                         running = False

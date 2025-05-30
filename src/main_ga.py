@@ -1,23 +1,24 @@
+# src/main_ga.py - AŽURIRANI KOD
 import pygame
 import os
 import random
 import sys
 
-from ai_brain import Brain
-from game_simulation import run_simulation_for_brain
+from .ai_brain import Brain                   # Relativni import
+from .game_simulation import run_simulation_for_brain # Relativni import
 
 # Broj AI agenata u svakoj generaciji
-POPULATION_SIZE = 30
+POPULATION_SIZE = 80
 # Broj instrukcija (poteza) koje svaki AI agent ima
-INSTRUCTION_COUNT = 20
+INSTRUCTION_COUNT = 80
 # Vjerojatnost mutacije svake instrukcije
-MUTATION_RATE = 0.15
+MUTATION_RATE = 0.30
 # Vjerojatnost da se potpuno nova instrukcija pojavi
-NEW_INSTRUCTION_CHANCE = 0.05
+NEW_INSTRUCTION_CHANCE = 0.15
 # Broj najboljih agenata koji se direktno prenose u sljedeću generaciju
-ELITISM_COUNT = 2
+ELITISM_COUNT = 8
 # Ukupan broj generacija koje će algoritam odraditi
-NUM_GENERATIONS = 100
+NUM_GENERATIONS = 1000
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,8 +41,12 @@ def run_genetic_algorithm():
         print(f"\n--- Generation {gen_num + 1} ---")
 
         for i, brain_agent in enumerate(population):
-            # Changed this line to render every brain in every generation
-            render_this_brain = True
+            render_this_brain = False
+            if gen_num % 50 == 0 and i == 0:
+                render_this_brain = True
+            elif gen_num < 5 and i < 5:
+                render_this_brain = True
+
             fitness = run_simulation_for_brain(brain_agent, LEVEL_FILEPATH, render=render_this_brain, current_generation=gen_num+1, brain_idx=i)
             brain_agent.fitness = fitness
             if render_this_brain:
@@ -53,7 +58,7 @@ def run_genetic_algorithm():
         if current_best_fitness > best_fitness_overall:
             best_fitness_overall = current_best_fitness
             best_brain_overall = population[0].clone()
-        
+
         avg_fitness = sum(b.fitness for b in population) / POPULATION_SIZE
         print(f"Generation {gen_num + 1}: Best Fitness = {population[0].fitness:.2f}, Avg Fitness = {avg_fitness:.2f}, Overall Best = {best_fitness_overall:.2f}")
 
@@ -63,7 +68,8 @@ def run_genetic_algorithm():
             next_generation_brains.append(population[i].clone())
 
         num_to_generate = POPULATION_SIZE - ELITISM_COUNT
-        parent_pool = population[:POPULATION_SIZE // 2]
+        parent_pool_size = POPULATION_SIZE // 4
+        parent_pool = population[:parent_pool_size]
         if not parent_pool:
             parent_pool = population[:ELITISM_COUNT] if ELITISM_COUNT > 0 else [population[0]]
 
@@ -72,14 +78,13 @@ def run_genetic_algorithm():
             child = parent.clone()
             child.mutate(MUTATION_RATE, NEW_INSTRUCTION_CHANCE)
             next_generation_brains.append(child)
-        
+
         population = next_generation_brains
 
-        if gen_num % 10 == 0 and gen_num > 0:
-            if population[0].current_instruction_number >= len(population[0].instructions) * 0.95:
-                print("Best brains are running out of moves. Increasing instruction count.")
-                for brain_agent in population:
-                    brain_agent.increase_moves(20)
+        if population[0].current_instruction_number >= len(population[0].instructions) * 0.85:
+            print("Best brain is running out of moves. Increasing instruction count for all brains.")
+            for brain_agent in population:
+                brain_agent.increase_moves(INSTRUCTION_COUNT // 2)
 
     print("\n--- Genetic Algorithm Finished ---")
     if best_brain_overall:
@@ -90,7 +95,7 @@ def run_genetic_algorithm():
         print("No best brain found.")
 
 if __name__ == "__main__":
-    pygame.init() 
+    pygame.init()
     run_genetic_algorithm()
     pygame.quit()
     sys.exit()
