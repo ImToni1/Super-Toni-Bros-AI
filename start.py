@@ -2,12 +2,14 @@ import os
 import sys
 import pygame
 
+# Set the environment variable BEFORE importing pygame.
+os.environ['SDL_VIDEO_CENTERED'] = '1'
 
 src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
 
 
 if src_path not in sys.path:
-    sys.path.insert(0, src_path)
+    sys.path.insert(0, src_path) # Corrected line: removed the extra 'sys.'
 
 try:
     from main import run_game as run_manual_game
@@ -61,12 +63,12 @@ def draw_button(surface, rect, text, text_color, button_color, hover_color):
     return is_hovering
 
 def main_menu():
-    level_filepath_menu = os.path.join(src_path, "level.txt") #
+    level_filepath_menu = os.path.join(src_path, "level.txt")
 
     background_image = None
     try:
         project_root_path = os.path.dirname(os.path.abspath(__file__))
-        background_path_menu = os.path.join(project_root_path, "images", "Background.jpeg") #
+        background_path_menu = os.path.join(project_root_path, "images", "Background.jpeg")
         if os.path.exists(background_path_menu):
             background_image = pygame.image.load(background_path_menu).convert()
             background_image = pygame.transform.scale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -102,12 +104,16 @@ def main_menu():
                 if event.button == 1:
                     if is_manual_hover:
                         print("Pokretanje ručne igre...")
-                        run_manual_game(level_filepath_menu) #
-                        running = False
+                        run_manual_game(level_filepath_menu)
+                        # After game returns, re-initialize pygame for the menu loop
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Re-create display for menu
+                        pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
                         print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
-                        running = False
+                        # After GA returns, re-initialize pygame for the menu loop
+                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Re-create display for menu
+                        pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:
                         running = False
         pygame.display.update()

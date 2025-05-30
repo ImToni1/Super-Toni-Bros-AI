@@ -45,7 +45,7 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
     clock = pygame.time.Clock()
 
-    player = Player(100, SCREEN_HEIGHT - 150, 50, 50)
+    player = Player(100, SCREEN_HEIGHT - 125, 50, 50) # PROMIJENJENO: Ispravljena početna Y-koordinata
     platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
     platform_manager.generate_platforms()
 
@@ -128,9 +128,10 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
 
         if stagnation_frames > MAX_STAGNATION_FRAMES:
             # Penaliziraj i prekini simulaciju
-            fitness = total_scroll_achieved - 1000
+            fitness = total_scroll_achieved - 500 # PROMIJENJENO: Kazna smanjena s 1000 na 500
             brain.fitness = fitness
-            break
+            simulation_running = False # Dodano da se osigura prekid
+            # break # 'break' je suvišan jer je već postavljeno simulation_running = False
 
         player.on_ground = False
         for plat_idx, plat_obj in enumerate(platform_manager.platforms):
@@ -179,10 +180,10 @@ def run_simulation_for_brain(brain, level_filepath, render=False, current_genera
         fitness += frames_survived * 0.1
 
     if total_scroll_achieved < 50 and frames_survived > MAX_SIMULATION_FRAMES_PER_BRAIN * 0.5:
-        fitness -= 10000
+        fitness -= 2000 # PROMIJENJENO: Kazna smanjena s 10000 na 2000
 
     if player.rect.top > SCREEN_HEIGHT and not game_won_by_ai:
-        fitness -= 50000
+        fitness -= 10000 # PROMIJENJENO: Kazna smanjena s 50000 na 10000
 
     brain.fitness = fitness
 

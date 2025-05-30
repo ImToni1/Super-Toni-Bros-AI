@@ -40,7 +40,8 @@ def run_genetic_algorithm():
         print(f"\n--- Generation {gen_num + 1} ---")
 
         for i, brain_agent in enumerate(population):
-            render_this_brain = (i == 0 and gen_num % 5 == 0)
+            # Changed this line to render every brain in every generation
+            render_this_brain = True
             fitness = run_simulation_for_brain(brain_agent, LEVEL_FILEPATH, render=render_this_brain, current_generation=gen_num+1, brain_idx=i)
             brain_agent.fitness = fitness
             if render_this_brain:

@@ -30,7 +30,7 @@ def run_game(level_filepath):
     font = pygame.font.SysFont(None, 80)
     timer_font = pygame.font.SysFont(None, 35)
 
-    player = Player(100, SCREEN_HEIGHT - 150, 50, 50) 
+    player = Player(100, SCREEN_HEIGHT - 125, 50, 50) # PROMIJENJENO: Ispravljena početna Y-koordinata
     platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
     platform_manager.generate_platforms()
 
@@ -38,7 +38,7 @@ def run_game(level_filepath):
 
     def reset_game():
         nonlocal player, platform_manager
-        player.reset(100, SCREEN_HEIGHT - 150)
+        player.reset(100, SCREEN_HEIGHT - 125) # PROMIJENJENO: Ispravljena Y-koordinata za reset
         platform_manager = PlatformManager(SCREEN_WIDTH, SCREEN_HEIGHT, level_filepath)
         platform_manager.generate_platforms()
 
