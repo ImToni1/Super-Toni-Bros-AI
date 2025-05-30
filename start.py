@@ -1,8 +1,12 @@
-# start.py - FINALNA IZMJENA ZA RJEŠAVANJE PROBLEMA S IMPORTOM
+# start.py - ISPRAVLJENA VERZIJA
 
 import os
 import sys
 import pygame
+
+# === DODANO: Inicijaliziraj Pygame na početku ===
+pygame.init()
+# ===============================================
 
 # Postavi varijablu okoline PRIJE uvoza Pygamea.
 os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -11,44 +15,39 @@ os.environ['SDL_VIDEO_CENTERED'] = '1'
 project_root = os.path.dirname(os.path.abspath(__file__))
 
 # Dodaj korijenski direktorij projekta u sys.path
-# Ovo omogućuje uvoz 'src' kao paketa, a unutar njega 'main' i 'main_ga'
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # --- ISPIS ZA DEBUGIRANJE (možete ih ukloniti nakon što proradi) ---
-print(f"sys.path nakon modifikacije: {sys.path}")
-print(f"Pokušavam uvesti iz paketa 'src' u: {project_root}")
+# print(f"sys.path nakon modifikacije: {sys.path}")
+# print(f"Pokušavam uvesti iz paketa 'src' u: {project_root}")
 # --- KRAJ ISPISA ZA DEBUGIRANJE ---
 
 try:
-    # Sada, uvozite module koristeći njihov put unutar paketa 'src'.
-    # Ako uvoz prođe, to znači da su src/main.py i src/main_ga.py pronađeni
     import src.main as main_module
     import src.main_ga as main_ga_module
 
-    # Dodijelite funkcije varijablama
     run_manual_game = main_module.run_game
     run_genetic_algorithm = main_ga_module.run_genetic_algorithm
 
 except ImportError as e:
     print(f"Greška pri importu modula igre (src.main ili src.main_ga): {e}")
-    print(f"Provjerite jesu li datoteke 'main.py' i 'main_ga.py' u direktoriju: '{os.path.join(project_root, 'src')}'.")
-    print(f"Također, provjerite jesu li importi unutar tih datoteka prilagođeni (bez vodeće točke).")
-    print(f"Trenutni sys.path: {sys.path}")
+    # ... (ostatak error handlinga za import)
     sys.exit(1)
 except AttributeError as e:
     print(f"AttributeError: {e}. Provjerite da funkcija 'run_game' postoji u 'src/main.py' i 'run_genetic_algorithm' u 'src/main_ga.py' na top-levelu.")
-    print(f"Također, provjerite da nema drugih 'main.py' ili 'main_ga.py' datoteka u vašem Python PATH-u koje bi mogle uzrokovati konflikt.")
+    # ... (ostatak error handlinga za AttributeError)
     sys.exit(1)
 except Exception as e:
     print(f"Neočekivana greška prilikom importa: {e}")
     sys.exit(1)
 
-# Inicijalizacija Pygame font modula.
-# Potpuna pygame.init() se poziva unutar run_game i run_simulation_for_brain.
-pygame.font.init()
+# Inicijalizacija Pygame font modula (pygame.init() gore bi ovo trebao pokriti, ali ne škodi)
+if not pygame.font.get_init():
+    pygame.font.init()
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
+# screen je sada modul-level varijabla, inicijalizirana nakon pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Super Toni Bros - Izbornik")
 
@@ -82,15 +81,16 @@ def draw_button(surface, rect, text, text_color, button_color, hover_color):
     current_color = hover_color if is_hovering else button_color
     pygame.draw.rect(surface, current_color, rect)
     draw_text(text, font, text_color, surface, rect.centerx, rect.centery)
-    return is_hovering
+    return is_hovering # Vrati hover stanje da se može koristiti u event petlji
 
 def main_menu():
-    # Put do level.txt datoteke. Sada koristi project_root i 'src' poddirektorij.
+    global screen # === VAŽNO: Koristimo globalnu 'screen' varijablu ===
+
+    # Put do level.txt datoteke.
     level_filepath_menu = os.path.join(project_root, "src", "level.txt")
 
     background_image = None
     try:
-        # project_root je već definiran gore
         background_path_menu = os.path.join(project_root, "images", "Background.jpeg")
         if os.path.exists(background_path_menu):
             background_image = pygame.image.load(background_path_menu).convert()
@@ -107,41 +107,51 @@ def main_menu():
 
     running = True
     while running:
-        screen.fill(LIGHT_BLUE)
-        if background_image:
-            screen.blit(background_image, (0, 0))
-        else:
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0,0,0,120))
-            screen.blit(overlay, (0,0))
-
-        draw_text("Super Toni Bros", title_font, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
-        is_manual_hover = draw_button(screen, manual_play_button_rect, "Igraj Ručno", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
-        is_ai_hover = draw_button(screen, ai_play_button_rect, "Pokreni AI", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
-        is_exit_hover = draw_button(screen, exit_button_rect, "Izlaz", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+        # Dohvati hover stanja na početku svakog okvira
+        # (draw_button interno dohvaća mouse_pos, pa ovo nije nužno za samo crtanje, ali jest za logiku klika)
+        is_manual_hover = manual_play_button_rect.collidepoint(pygame.mouse.get_pos())
+        is_ai_hover = ai_play_button_rect.collidepoint(pygame.mouse.get_pos())
+        is_exit_hover = exit_button_rect.collidepoint(pygame.mouse.get_pos())
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
+                if event.button == 1: # Lijevi klik
                     if is_manual_hover:
                         print("Pokretanje ručne igre...")
                         run_manual_game(level_filepath_menu)
-                        # Nakon povratka iz igre, ponovno inicijaliziraj pygame za petlju izbornika
-                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Ponovno kreiraj display za izbornik
+                        # === ISPRAVAK: Ponovno dodijeli 'screen' ===
+                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) 
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_ai_hover:
                         print("Pokretanje genetskog algoritma (AI)...")
                         run_genetic_algorithm()
-                        # Nakon povratka iz GA, ponovno inicijaliziraj pygame za petlju izbornika
-                        pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) # Ponovno kreiraj display za izbornik
+                        # === ISPRAVAK: Ponovno dodijeli 'screen' ===
+                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) 
                         pygame.display.set_caption("Super Toni Bros - Izbornik")
                     elif is_exit_hover:
                         running = False
+        
+        # Crtanje na ekran
+        screen.fill(LIGHT_BLUE) # Sada bi trebalo raditi s ispravnom 'screen' površinom
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else: # Fallback ako nema pozadinske slike
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0,0,0,120)) # Poluprozirni crni overlay
+            screen.blit(overlay, (0,0))
+
+        draw_text("Super Toni Bros", title_font, WHITE, screen, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4)
+        # Funkcija draw_button sama provjerava hover, pa ne moramo prosljeđivati is_..._hover
+        draw_button(screen, manual_play_button_rect, "Igraj Ručno", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+        draw_button(screen, ai_play_button_rect, "Pokreni AI", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+        draw_button(screen, exit_button_rect, "Izlaz", WHITE, BUTTON_COLOR, BUTTON_HOVER_COLOR)
+
         pygame.display.update()
         pygame.time.Clock().tick(30)
-    pygame.quit()
+        
+    pygame.quit() # Ugasi Pygame kada se izađe iz glavne petlje (npr. klik na Izlaz)
     sys.exit()
 
 if __name__ == "__main__":
