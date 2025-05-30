@@ -1,22 +1,15 @@
-# start.py
-
 import os
 import sys
 import pygame
 
-# Putanja do 'src' direktorija
-# __file__ je putanja do start.py
-# os.path.dirname(os.path.abspath(__file__)) je korijenski direktorij projekta
+
 src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
 
-# Dodaj 'src' direktorij u Python path
-# Ovo omogućuje direktan import modula iz 'src' kao da su top-level
+
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-# Sada bi importi iz src trebali raditi kao da su top-level moduli
 try:
-    # Importiraj module direktno po imenu jer je 'src' sada na sys.path
     from main import run_game as run_manual_game
     from main_ga import run_genetic_algorithm
 except ImportError as e:
@@ -29,11 +22,6 @@ except Exception as e:
     print(f"Neočekivana greška prilikom importa: {e}")
     sys.exit(1)
 
-# Ostatak koda u start.py ostaje isti kao u vašoj zadnjoj ispravnoj verziji izbornika
-# (Pygame inicijalizacija, definicije ekrana, boja, fontova, funkcije draw_text, draw_button, main_menu)
-
-# Pygame inicijalizacija za izbornik
-pygame.init()
 pygame.font.init()
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
